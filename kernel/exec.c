@@ -115,6 +115,12 @@ exec(char *path, char **argv)
   p->trapframe->epc = elf.entry;  // initial program counter = main
   p->trapframe->sp = sp; // initial stack pointer
   proc_freepagetable(oldpagetable, oldsz);
+  uvmunmap(p->kpagetable,0,PGROUNDUP(oldsz)/PGSIZE,0);
+
+  if(p->sz >= PLIC){
+    return -1;
+  }
+  kvmcopymappings(p->kpagetable,p->pagetable,0,p->sz);
 
   if(p->pid == 1)
     vmprint(p->pagetable);

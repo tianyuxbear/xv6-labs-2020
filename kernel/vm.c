@@ -426,23 +426,7 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 int
 copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len)
 {
-  uint64 n, va0, pa0;
-
-  while(len > 0){
-    va0 = PGROUNDDOWN(srcva);
-    pa0 = walkaddr(pagetable, va0);
-    if(pa0 == 0)
-      return -1;
-    n = PGSIZE - (srcva - va0);
-    if(n > len)
-      n = len;
-    memmove(dst, (void *)(pa0 + (srcva - va0)), n);
-
-    len -= n;
-    dst += n;
-    srcva = va0 + PGSIZE;
-  }
-  return 0;
+  return copyin_new(pagetable,dst,srcva,len);
 }
 
 // Copy a null-terminated string from user to kernel.
@@ -452,40 +436,7 @@ copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len)
 int
 copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
 {
-  uint64 n, va0, pa0;
-  int got_null = 0;
-
-  while(got_null == 0 && max > 0){
-    va0 = PGROUNDDOWN(srcva);
-    pa0 = walkaddr(pagetable, va0);
-    if(pa0 == 0)
-      return -1;
-    n = PGSIZE - (srcva - va0);
-    if(n > max)
-      n = max;
-
-    char *p = (char *) (pa0 + (srcva - va0));
-    while(n > 0){
-      if(*p == '\0'){
-        *dst = '\0';
-        got_null = 1;
-        break;
-      } else {
-        *dst = *p;
-      }
-      --n;
-      --max;
-      p++;
-      dst++;
-    }
-
-    srcva = va0 + PGSIZE;
-  }
-  if(got_null){
-    return 0;
-  } else {
-    return -1;
-  }
+  return copyinstr_new(pagetable,dst,srcva,max);
 }
 
 void
@@ -515,4 +466,28 @@ vmprint(pagetable_t pagetable)
 {
     printf("page table %p\n", pagetable);
     _vmprint(pagetable, 1);
+}
+
+uint64
+kvmcopymappings(pagetable_t dest, pagetable_t src, uint64 srcva, uint64 sz)
+{
+  pte_t *pte_src, *pte_dest;
+  uint64 va, pa;
+  int perm;
+  va = PGROUNDUP(srcva);
+  
+  for(int i = va; i < srcva + sz; i += PGSIZE)
+  {
+    if((pte_src = walk(src,i,0)) == 0){
+      panic("kvmcopymappings: src pte not exist");
+    }
+    if((pte_dest = walk(dest,i,1)) == 0){
+      panic("kvmcopymappings: dest pte not exist");
+    }
+    perm = PTE_FLAGS(*pte_src);
+    perm = perm & (~PTE_U);
+    pa = PTE2PA(*pte_src);
+    *pte_dest = PA2PTE(pa) | perm;
+  }
+  return 0;
 }
