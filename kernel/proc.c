@@ -34,12 +34,12 @@ procinit(void)
       // Allocate a page for the process's kernel stack.
       // Map it high in memory, followed by an invalid
       // guard page.
-      char *pa = kalloc();
-      if(pa == 0)
-        panic("kalloc");
-      uint64 va = KSTACK((int) (p - proc));
-      kvmmap(va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
-      p->kstack = va;
+      // char *pa = kalloc();
+      // if(pa == 0)
+      //   panic("kalloc");
+      // uint64 va = KSTACK((int) (p - proc));
+      // kvmmap(va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
+      // p->kstack = va;
   }
   kvminithart();
 }
@@ -121,6 +121,20 @@ found:
     return 0;
   }
 
+  p->kpagetable = kvminit_proc();
+  if(p->kpagetable == 0){
+    freeproc(p);
+    release(&p->lock);
+    return 0;
+  }
+
+  char *pa = kalloc();
+  if(pa == 0)
+    panic("kalloc");
+  uint64 va = KSTACK((int) (p - proc));
+  kvmmap_proc(p->kpagetable, va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
+  p->kstack = (uint64)pa;
+
   // Set up new context to start executing at forkret,
   // which returns to user space.
   memset(&p->context, 0, sizeof(p->context));
@@ -142,6 +156,12 @@ freeproc(struct proc *p)
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
   p->pagetable = 0;
+  if(p->kstack)
+    kfree((void*)p->kstack);
+  p->kstack = 0;
+  if(p->kpagetable)
+    proc_freekpagetable(p->kpagetable);
+  p->kpagetable = 0;
   p->sz = 0;
   p->pid = 0;
   p->parent = 0;
@@ -193,6 +213,24 @@ proc_freepagetable(pagetable_t pagetable, uint64 sz)
   uvmunmap(pagetable, TRAMPOLINE, 1, 0);
   uvmunmap(pagetable, TRAPFRAME, 1, 0);
   uvmfree(pagetable, sz);
+}
+
+void
+proc_freekpagetable(pagetable_t kpagetable)
+{
+  pte_t *pte;
+  for(int i = 0; i < 512; i++)
+  {
+    pte = &kpagetable[i];
+    if(*pte & PTE_V){
+      if((*pte & (PTE_R | PTE_W | PTE_X)) == 0){
+          uint64 child = PTE2PA(*pte);
+          proc_freekpagetable((pagetable_t)child);
+      }
+      *pte = 0;
+    }
+  }
+  kfree((void*) kpagetable);
 }
 
 // a user program that calls exec("/init")
@@ -473,11 +511,14 @@ scheduler(void)
         // before jumping back to us.
         p->state = RUNNING;
         c->proc = p;
+        kvminithart_proc(p->kpagetable);
+
         swtch(&c->context, &p->context);
 
         // Process is done running for now.
         // It should have changed its p->state before coming back.
         c->proc = 0;
+        kvminithart();
 
         found = 1;
       }
