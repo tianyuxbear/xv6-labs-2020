@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "syscall.h"
 
 struct spinlock tickslock;
 uint ticks;
@@ -67,6 +68,24 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
+  } else if(r_scause() == 13 || r_scause() == 15){
+    uint64 va = r_stval();
+    if(va >= p->sz || va < p->trapframe->sp){
+      p->killed = 1;
+    }else{
+      va = PGROUNDDOWN(va);
+      char *pa = kalloc();
+      if(pa == 0){
+        p->killed = 1;
+      }else{
+      memset(pa, 0, PGSIZE);
+      int perm = PTE_R | PTE_W | PTE_U;
+      if(mappages(p->pagetable,va,PGSIZE,(uint64)pa,perm) < 0 ){
+        kfree(pa);
+        p->killed = 1;
+      }
+      }
+    }
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
@@ -216,5 +235,40 @@ devintr()
   } else {
     return 0;
   }
+}
+
+int rwcheck()
+{
+  struct proc * p = myproc();
+  int num = p->trapframe->a7;
+  if(num == SYS_read || num == SYS_write){
+    uint64 addr, va, sp;
+    int sz;
+    if(argaddr(1,&addr) < 0){
+      return -1;
+    }
+    if(argint(2,&sz) < 0){
+      return -1;
+    }
+    va = PGROUNDDOWN(addr);
+    sp = PGROUNDUP(p->trapframe->sp);
+    for(; va < addr + sz; va += PGSIZE){
+      if(walkaddr(p->pagetable,addr) == 0){
+         if(addr >= p->sz || addr < sp)
+            return -1;
+         char *pa = kalloc();
+         if(pa == 0){
+           return -1;
+         }
+         memset(pa,0,PGSIZE);
+         int perm = PTE_R | PTE_W | PTE_U;
+         if(mappages(p->pagetable,va,PGSIZE,(uint64)pa,perm) < 0){
+           kfree(pa);
+           return -1;
+         }
+      }
+    }
+  }
+  return 0;
 }
 
