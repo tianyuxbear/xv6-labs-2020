@@ -59,11 +59,12 @@ kfree(void *pa)
     panic("kfree");
 
   int refc = sub_refc((uint64)pa);
-  if(refc > 0) 
-    return;
-  else if(refc < 0){
+  if(refc < 0){
     printf("refc: %d pa: %p\n",refc, pa);
     panic("kfree");
+  }
+  else if(refc > 0){
+    return;
   }
 
   // Fill with junk to catch dangling refs.
