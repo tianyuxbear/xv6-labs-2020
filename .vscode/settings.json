@@ -4,7 +4,8 @@
 		"memlayout.h": "c",
 		"param.h": "c",
 		"spinlock.h": "c",
-		"defs.h": "c"
+		"defs.h": "c",
+		"fcntl.h": "c"
 	},
 	"C_Cpp.errorSquiggles": "disabled"
 }

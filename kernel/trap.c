@@ -71,7 +71,7 @@ usertrap(void)
     pagetable_t pagetable = p->pagetable;
     uint64 va = r_stval();
     pte_t *pte = walk(pagetable,va,0);
-    if(pte == 0 || ((*pte & PTE_V) == 0))
+    if(pte == 0 || ((*pte & PTE_V) == 0) || ((*pte & PTE_U) == 0))
       exit(-1);
 
     if(*pte & PTE_COW){
@@ -87,7 +87,7 @@ usertrap(void)
         flags |= PTE_W;
         *pte = PA2PTE(npa);
         *pte |= flags;
-        sub_refc(pa);
+        kfree((char *)pa);
       }else if(refc == 1){
         *pte |= PTE_W;
         *pte &= ~PTE_COW;

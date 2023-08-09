@@ -188,9 +188,7 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
       panic("uvmunmap: not a leaf");
     if(do_free){
        uint64 pa = PTE2PA(*pte);
-       int refc = sub_refc(pa);
-       if(refc == 0)
-          kfree((void*)pa);
+       kfree((void*)pa);
     }
     *pte = 0;
   }
@@ -319,9 +317,9 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
       panic("uvmcopy: pte should exist");
     if((*pte & PTE_V) == 0)
       panic("uvmcopy: page not present");
+    pa = PTE2PA(*pte);
     *pte &= ~PTE_W;
     *pte |= PTE_COW;
-    pa = PTE2PA(*pte);
     flags = PTE_FLAGS(*pte);
     if(mappages(new, i, PGSIZE, pa, flags) != 0){
       goto err;
@@ -377,7 +375,7 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
           flags |= PTE_W;
           *pte = PA2PTE(pa1);
           *pte |= flags;
-          sub_refc(pa0);
+          kfree((char *)pa0);
         }else if(refc == 1){
           *pte &= ~PTE_COW;
           *pte |= PTE_W;
