@@ -1,0 +1,1 @@
+For table[i], there may be two threads concurrently put entry to it. And in this situation, thread 1 and thread 2 both want to put a new key, and they both enter insert with the same table[i] entry. No matter what thread update table[i] first, the content it writes would be cover by the other because overwrite.
