@@ -168,10 +168,9 @@ brelse(struct buf *b)
   if(!holdingsleep(&b->lock))
     panic("brelse");
 
-  int bid = b->blockno % NBUCKET;
-
   releasesleep(&b->lock);
 
+  int bid = b->blockno % NBUCKET;
 
   acquire(&bcache.buckets[bid].lock);
   b->refcnt--;
