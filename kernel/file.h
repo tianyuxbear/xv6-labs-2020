@@ -13,6 +13,9 @@ struct file {
 #define minor(dev)  ((dev) & 0xFFFF)
 #define	mkdev(m,n)  ((uint)((m)<<16| (n)))
 
+// the max depth of symbolic link
+#define MAX_SYMLINK_DEPTH 10
+
 // in-memory copy of an inode
 struct inode {
   uint dev;           // Device number
