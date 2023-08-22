@@ -5,6 +5,8 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "fcntl.h"
+#include "file.h"
 
 struct spinlock tickslock;
 uint ticks;
@@ -13,6 +15,7 @@ extern char trampoline[], uservec[], userret[];
 
 // in kernelvec.S, calls kerneltrap().
 void kernelvec();
+int mmap_handler(uint64,int);
 
 extern int devintr();
 
@@ -67,7 +70,21 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
-  } else {
+  }
+  #ifdef LAB_MMAP
+  else if(r_scause() == 13 || r_scause() == 15)
+  {
+    uint64 va = r_stval();
+    int cause = r_scause();
+    if(PGROUNDUP(p->trapframe->sp) <= va && va < p->sz){
+      if(mmap_handler(va,cause) != 0)
+        p->killed = 1;
+    }else{
+      p->killed = 1;
+    }
+  }
+  #endif
+  else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     p->killed = 1;
@@ -218,3 +235,49 @@ devintr()
   }
 }
 
+int mmap_handler(uint64 va, int cause){
+  struct proc *p = myproc();
+
+  struct vma t;
+  int i;
+  for(i = 0; i < NVMA; i++){
+    t = p->vmas[i];
+    if(t.addr && t.addr <= va && va < t.addr + t.length){
+      break;
+    }
+  }
+  if(i == NVMA)
+    return -1;
+  
+  struct file *fp = t.fp;
+  if(cause == 13 && fp->readable == 0)
+    return -1;
+  if(cause == 15 && fp->writable == 0)
+    return -1;
+
+  char *pa = kalloc();
+  if(pa == 0)
+    return -1;
+  memset(pa,0,PGSIZE);
+
+  int offset = t.offset + PGROUNDDOWN(va - t.addr);
+  ilock(fp->ip);
+  if(readi(fp->ip,0,(uint64)pa,offset,PGSIZE) <= 0){
+    iunlock(fp->ip);
+    kfree(pa);
+    return -1;
+  }
+  iunlock(fp->ip);
+
+  int perm = PTE_U;
+  if(t.prot & PROT_READ) perm |= PTE_R;
+  if(t.prot & PROT_WRITE) perm |= PTE_W;
+  if(t.prot & PROT_EXEC) perm |= PTE_X;
+
+  if(mappages(p->pagetable,PGROUNDDOWN(va),PGSIZE,(uint64)pa,perm) != 0){
+    kfree(pa);
+    return -1;
+  }
+
+  return 0;
+}
