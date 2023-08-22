@@ -169,8 +169,6 @@ sys_munmap(void)
     return -1;
 
   if((p->vmas[i].prot & PROT_WRITE) && (p->vmas[i].flags & MAP_SHARED)){
-    // if(filewrite(p->vmas[i].fp, va, length) < 0)
-    //   return -1;
     filewrite(p->vmas[i].fp, va, length);
   }
 
@@ -178,7 +176,7 @@ sys_munmap(void)
 
   if(p->vmas[i].length == 0){
     fileclose(p->vmas[i].fp);
-    p->vmas[i].addr = 0;
+    memset(&p->vmas[i],0,sizeof(struct vma));
   }
 
   return 0;
