@@ -124,8 +124,6 @@ e1000_transmit(struct mbuf *m)
 
   regs[E1000_TDT] = (index + 1) % TX_RING_SIZE;
 
-  __sync_synchronize();
-
   release(&e1000_lock);
 
   return 0;
@@ -140,13 +138,14 @@ e1000_recv(void)
   // Check for packets that have arrived from the e1000
   // Create and deliver an mbuf for each packet (using net_rx()).
   //
+
   int index = (regs[E1000_RDT] + 1) % RX_RING_SIZE;
   struct rx_desc rxd = rx_ring[index];
   while(rxd.status & E1000_RXD_STAT_DD){
-    acquire(&e1000_lock);
     struct mbuf *m = rx_mbufs[index];
     m->len = rxd.length;
-
+    net_rx(m);
+    
     struct mbuf *t = mbufalloc(0);
     if(!t){
       panic("recv: mbufalloc error");
@@ -158,11 +157,6 @@ e1000_recv(void)
 
     regs[E1000_RDT] = index;
 
-    __sync_synchronize();
-    release(&e1000_lock);
-
-    net_rx(m);
-    
     index = (index + 1) % RX_RING_SIZE;
     rxd = rx_ring[index];
   }
