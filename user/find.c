@@ -3,7 +3,7 @@
 #include "./user.h"
 #include "../kernel/fs.h"
 
-void recur_trav(const char *path, const char *filename);
+void find(const char *path, const char *filename);
 
 int main(int argc, char *argv[])
 {
@@ -14,12 +14,12 @@ int main(int argc, char *argv[])
 	}
 	char *path = argv[1], *filename = argv[2];
 
-	recur_trav(path, filename);
+	find(path, filename);
 
 	exit(0);
 }
 
-void recur_trav(const char *path, const char *filename)
+void find(const char *path, const char *filename)
 {
 	int fd;
 	char buf[512], *p;
@@ -36,12 +36,13 @@ void recur_trav(const char *path, const char *filename)
 		*p++ = '/';
 		memmove(p, de.name, DIRSIZ);
 		p[DIRSIZ] = 0;
-		stat(buf, &st);
+		if(stat(buf, &st) < 0)
+			return;
 		if (st.type == T_DIR)
 		{
 			if (strcmp(de.name, ".") != 0 && strcmp(de.name, "..") != 0)
 			{
-				recur_trav(buf, filename);
+				find(buf, filename);
 			}
 		}
 		else
