@@ -110,7 +110,7 @@ sys_sigalarm(void)
   }
   struct proc * p = myproc();
   p->sig_interval = ticks;
-  p->sig_handler = (void *)handler;
+  p->sig_handler = handler;
   return 0;
 }
 

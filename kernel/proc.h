@@ -94,7 +94,7 @@ struct proc {
   int xstate;                  // Exit status to be returned to parent's wait
   int pid;                     // Process ID
   int sig_interval;            // alarm ticks interval
-  void (*sig_handler)();       // alarm handle's func pointer 
+  uint64 sig_handler;       // alarm handle's func pointer 
   int passticks;               // ticks have passed since the last cal
   int is_alarming;
 
