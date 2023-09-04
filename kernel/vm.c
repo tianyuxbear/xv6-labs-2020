@@ -442,16 +442,16 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
 void
 _vmprint(pagetable_t pagetable, int level)
 {
-    char * prefex;
-    if(level == 1) prefex = "..";
-    else if(level == 2) prefex = ".. ..";
-    else if(level == 3) prefex = ".. .. ..";
+    char * prefix;
+    if(level == 1) prefix = "..";
+    else if(level == 2) prefix = ".. ..";
+    else if(level == 3) prefix = ".. .. ..";
     else panic("_vmprint");
 
     for(int i = 0; i < 512; i++){
       pte_t pte = pagetable[i];
       if( pte & PTE_V){
-        printf("%s%d: pte %p pa %p\n", prefex, i, pte, PTE2PA(pte));
+        printf("%s%d: pte %p pa %p\n", prefix, i, pte, PTE2PA(pte));
         if(( pte & (PTE_R | PTE_W | PTE_X)) == 0)
         {
           uint64 child = PTE2PA(pte);
