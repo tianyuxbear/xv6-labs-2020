@@ -87,7 +87,7 @@ bget(uint dev, uint blockno)
 
   struct buf * t;
   b = 0;
-  // 从当前桶中开始查找
+  // 从当前桶中开始查找refc == 0的buf替换出去。
   for(int i = 0; i < NBUCKET; i++){
     int nbid = (bid + i) % NBUCKET;
 
