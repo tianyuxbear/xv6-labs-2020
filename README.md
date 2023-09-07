@@ -1,21 +1,3 @@
----
-layout: post
-title: MIT6.S081-Lab0 overview
-excerpt: '本篇文章主要简单介绍下MIT6.S081这门课程，汇总一些网页资源，环境配置指南以及工具的使用。'
-math: false
-category_bar: true
-date: 2023-08-26 15:37:51
-updated:
-index_img: https://cdn.jsdelivr.net/gh/tianyuxbear/blog-image/imgs/image-20230826154455432.png
-categories:
-- 学习笔记
-- MIT6.S081
-tags:
-- OS
-- xv6
-sticky:
----
-
 ### 课程简介
 
 MIT6.S081: Operating System Engineering 是麻省理工学院的PDOS实验室开设的面向MIT本科生的操作系统课程。PDOS的几位教授基于RISC-V开发了一个教学用操作系统xv6（一个类似于UINX v6的操作系统），课程以xv6为基础，围绕着内核、中断、系统调用、线程、上下文切换、虚拟内存、文件系统、软硬件之间的协调和交互等主题展开讲授。课程不局限于理论知识，每周都会有一个lab,让学生在xv6上增加一些新的机制和特性，帮助学生理解操作系统的众多机制和特性，十分注重学生动手能力的培养。
