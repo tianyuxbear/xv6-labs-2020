@@ -6,6 +6,7 @@
 #include "proc.h"
 #include "defs.h"
 #include "fcntl.h"
+#include "file.h"
 
 struct cpu cpus[NCPU];
 
@@ -366,9 +367,30 @@ exit(int status)
   for(int i = 0; i < NVMA; i++){
     if(p->vmas[i].addr)
     {
-      if((p->vmas[i].prot & PROT_WRITE) && (p->vmas[i].flags & MAP_SHARED))
+      if(p->vmas[i].flags & MAP_SHARED)
       {
-        filewrite(p->vmas[i].fp, p->vmas[i].addr, p->vmas[i].length);
+         struct file *fp = p->vmas[i].fp; 
+         uint64 va = p->vmas[i].addr;
+         int length = p->vmas[i].length;
+         uint64 addr = PGROUNDDOWN(va);
+         int r, nbyte;
+         for(uint64 i = addr; i < va + length; i += PGSIZE)
+         {
+            pte_t *pte = walk(p->pagetable,i,0);
+            if((pte == 0) || ((*pte & PTE_V) == 0))
+               continue;
+            if(*pte & PTE_D)
+            {
+              int remain = addr + length - i;
+              nbyte = PGSIZE < remain ? PGSIZE : remain;
+              begin_op();
+              ilock(fp->ip);
+              if((r = writei(fp->ip,1,i,fp->off,nbyte)) > 0)
+              fp->off += r;
+              iunlock(fp->ip);
+              end_op();
+            }
+          }
       }
       uvmunmap(p->pagetable,p->vmas[i].addr,p->vmas[i].length/PGSIZE,1);
       fileclose(p->vmas[i].fp);

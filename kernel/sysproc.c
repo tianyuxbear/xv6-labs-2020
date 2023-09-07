@@ -168,8 +168,28 @@ sys_munmap(void)
   if(i == NVMA)
     return -1;
 
-  if((p->vmas[i].prot & PROT_WRITE) && (p->vmas[i].flags & MAP_SHARED)){
-    filewrite(p->vmas[i].fp, va, length);
+  if(p->vmas[i].flags & MAP_SHARED){
+    struct file *fp = p->vmas[i].fp; 
+    uint64 addr = PGROUNDDOWN(va);
+    int r, nbyte;
+    for(uint64 i = addr; i < va + length; i += PGSIZE)
+    {
+       pte_t *pte = walk(p->pagetable,i,0);
+       if((pte == 0) || ((*pte & PTE_V) == 0))
+          continue;
+       if(*pte & PTE_D)
+       {
+          int remain = addr + length - i;
+          nbyte = PGSIZE < remain ? PGSIZE : remain;
+          begin_op();
+          ilock(fp->ip);
+          if((r = writei(fp->ip,1,i,fp->off,nbyte)) > 0)
+             fp->off += r;
+          iunlock(fp->ip);
+          end_op();
+       }
+    }
+    //filewrite(p->vmas[i].fp, va, length);
   }
 
   uvmunmap(p->pagetable,va,length/PGSIZE,1);
